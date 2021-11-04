@@ -1,0 +1,1 @@
+# A Go package providing a set of assertion functions.
