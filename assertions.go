@@ -7,7 +7,24 @@ import (
 	"testing"
 
 	"github.com/gohobby/assert/tablewriter"
+
+	"github.com/kr/pretty"
 )
+
+const Pretty uint = 1 << iota
+
+func parseMsgAndArgs(args ...interface{}) (msgAndArgs []interface{}, pretty bool) {
+	pretty = false
+
+	for k, arg := range args {
+		if val, ok := arg.(uint); ok && val&Pretty != 0 {
+			msgAndArgs = append(args[:k], args[k+1:]...)
+			pretty = true
+		}
+	}
+
+	return msgAndArgs, pretty
+}
 
 // Equal asserts that two objects are equal.
 //
@@ -16,6 +33,8 @@ import (
 // Function equality cannot be determined and will always fail.
 func Equal(t testing.TB, expected, actual interface{}, msgAndArgs ...interface{}) bool {
 	t.Helper()
+
+	msgAndArgs, prettyEnabled := parseMsgAndArgs(msgAndArgs...)
 
 	if err := validateEqualArgs(expected, actual); err != nil {
 		return Fail(t, fmt.Sprintf("Invalid operation: %#v == %#v (%s)", expected, actual, err), nil, msgAndArgs...)
@@ -30,8 +49,13 @@ func Equal(t testing.TB, expected, actual interface{}, msgAndArgs ...interface{}
 	}
 
 	return Fail(t, "Not equal", func(formatter *tablewriter.Table) {
-		formatter.Writef("\nExpect:\t%+v\t(%T)", expected, expected)
-		formatter.Writef("\nActual:\t%+v\t(%T)", actual, actual)
+		if prettyEnabled {
+			formatter.Writef("\nExpect:\t%s", strings.ReplaceAll(pretty.Sprintf("%# v", expected), "\n", "\n\t"))
+			formatter.Writef("\nActual:\t%s", strings.ReplaceAll(pretty.Sprintf("%# v", actual), "\n", "\n\t"))
+		} else {
+			formatter.Writef("\nExpect:\t%+v\t(%T)", expected, expected)
+			formatter.Writef("\nActual:\t%+v\t(%T)", actual, actual)
+		}
 	}, msgAndArgs...)
 }
 
