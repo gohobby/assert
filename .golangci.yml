@@ -16,19 +16,16 @@ linters:
     - gocyclo
     - gofmt
     - goimports
-    - golint
     - goprintffuncname
     - gosec
     - gosimple
     - govet
     - ineffassign
-    - interfacer
     - misspell
     - nakedret
     - noctx
     - nolintlint
     - rowserrcheck
-    - scopelint
     - staticcheck
     - structcheck
     - stylecheck
@@ -48,9 +45,12 @@ linters:
 #    - godot
 #    - godox
 #    - goerr113
+#    - golint
 #    - gomnd
+#    - interfacer
 #    - lll
 #    - maligned
 #    - nestif
 #    - prealloc
+#    - scopelint
 #    - testpackage
