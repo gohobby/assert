@@ -11,19 +11,31 @@ import (
 	"github.com/kr/pretty"
 )
 
-const Pretty uint = 1 << iota
+// Formatting can be controlled with these flags.
+const (
+	// Print a Go-syntax representation of the value.
+	GoSyntax uint = 1 << iota
 
-func parseMsgAndArgs(args ...interface{}) (msgAndArgs []interface{}, pretty bool) {
-	pretty = false
+	// Pretty-printing of the value.
+	Pretty
+)
+
+func ParseMsgAndArgs(args ...interface{}) (msgAndArgs []interface{}, format uint) {
+	msgAndArgs = append(make([]interface{}, 0), args...)
+	format = 0
 
 	for k, arg := range args {
-		if val, ok := arg.(uint); ok && val&Pretty != 0 {
-			msgAndArgs = append(args[:k], args[k+1:]...)
-			pretty = true
+		if val, ok := arg.(uint); ok {
+			switch val {
+			case GoSyntax, Pretty:
+				k -= len(args) - len(msgAndArgs)
+				msgAndArgs = append(msgAndArgs[:k], msgAndArgs[k+1:]...)
+				format = val
+			}
 		}
 	}
 
-	return msgAndArgs, pretty
+	return msgAndArgs, format
 }
 
 // Equal asserts that two objects are equal.
@@ -34,7 +46,7 @@ func parseMsgAndArgs(args ...interface{}) (msgAndArgs []interface{}, pretty bool
 func Equal(t testing.TB, expected, actual interface{}, msgAndArgs ...interface{}) bool {
 	t.Helper()
 
-	msgAndArgs, prettyEnabled := parseMsgAndArgs(msgAndArgs...)
+	msgAndArgs, format := ParseMsgAndArgs(msgAndArgs...)
 
 	if err := validateEqualArgs(expected, actual); err != nil {
 		return Fail(t, fmt.Sprintf("Invalid operation: %#v == %#v (%s)", expected, actual, err), nil, msgAndArgs...)
@@ -49,10 +61,14 @@ func Equal(t testing.TB, expected, actual interface{}, msgAndArgs ...interface{}
 	}
 
 	return Fail(t, "Not equal", func(formatter *tablewriter.Table) {
-		if prettyEnabled {
+		switch format {
+		case GoSyntax:
+			formatter.Writef("\nExpect:\t%#v", expected)
+			formatter.Writef("\nActual:\t%#v", actual)
+		case Pretty:
 			formatter.Writef("\nExpect:\t%s", strings.ReplaceAll(pretty.Sprintf("%# v", expected), "\n", "\n\t"))
 			formatter.Writef("\nActual:\t%s", strings.ReplaceAll(pretty.Sprintf("%# v", actual), "\n", "\n\t"))
-		} else {
+		default:
 			formatter.Writef("\nExpect:\t%+v\t(%T)", expected, expected)
 			formatter.Writef("\nActual:\t%+v\t(%T)", actual, actual)
 		}
@@ -169,6 +185,8 @@ func Fail(
 	if len(failureMessage) != 0 {
 		table.WriteRow("Error:", failureMessage)
 	}
+
+	msgAndArgs, _ = ParseMsgAndArgs(msgAndArgs...)
 
 	message := messageFromMsgAndArgs(msgAndArgs...)
 	if len(message) > 0 {
